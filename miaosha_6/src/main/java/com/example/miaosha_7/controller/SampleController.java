@@ -58,4 +58,12 @@ public class SampleController {
 		mqSender.send("seng msg by fyh");
 		return Result.success("Hello world");
 	}
+
+	@RequestMapping("/mq/topic")
+	@ResponseBody
+	public Result<String> topic(){
+
+		mqSender.sendTopic("seng msg by fyh");
+		return Result.success("Hello world");
+	}
 }

@@ -34,4 +34,10 @@ public class MQSender {
 		logger.info("send message: " + msg);
 		amqpTemplate.convertAndSend(MIAOSHA_QUEUE,msg);
 	}
+
+	public void sendTopic(Object message){
+		logger.info("send topic message: " + message);
+		amqpTemplate.convertAndSend(MQConfig.TOPIC_EXCHANGE,"topic.key1",message + "1");
+		amqpTemplate.convertAndSend(MQConfig.TOPIC_EXCHANGE,"topic.key2",message+"2");
+	}
 }

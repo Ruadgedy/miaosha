@@ -84,6 +84,7 @@ public class MiaoshaController implements InitializingBean {
 		}
 
 		// 预减库存
+		// ! 这里有一个问题：如果用户预减库存后发现自己已经秒杀过了，此时直接返回失败，但预减的库存会凭空消失。这可能会导致错误
 		long stock = redisService.decr(GoodsKey.getMiaoshaGoodsStock, goodsId + "");
 		if (stock < 0) {
 			localOverMap.put(goodsId,true);

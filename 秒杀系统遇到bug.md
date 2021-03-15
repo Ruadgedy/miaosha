@@ -446,9 +446,75 @@ public class UserArgumentResolver implements HandlerMethodArgumentResolver {
 思路：减少数据库访问
 
 1. 系统初始化，把商品库存数量加载到Redis
+
+> 实现：让MiaoshaController 实现InitialingBean接口，并重写afterPropertiesSet（）方法。
+>
+> ```java
+> @Override
+> 	public void afterPropertiesSet() throws Exception {
+> 		List<GoodsVo> goodsList = goodsService.listGoodsVo();
+> 		if (goodsList == null) {
+> 			return;
+> 		}
+>     // 将商品信息全部写入redis
+> 		for (GoodsVo goods : goodsList) {
+> 			redisService.set(GoodsKey.getMiaoshaGoodsStock, goods.getId() + "", goods.getStockCount());
+> 			localOverMap.put(goods.getId(),false);
+> 		}
+> 	}
+> ```
+>
+> 
+
 2. 收到请求，Redis预减库存，库存不足，直接返回，否则进入3
+
+> Redis自减操作具有原子性，可应对并发请求。
+>
+> 如果库存不足，则直接返回。这一步可以省去对数据库的访问
+>
+> ```java
+> // 预减库存
+> 		long stock = redisService.decr(GoodsKey.getMiaoshaGoodsStock, goodsId + "");
+> 		if (stock < 0) {
+> 			localOverMap.put(goodsId,true);
+> 			return Result.error(CodeMsg.MIAO_SHA_OVER);
+> 		}
+> ```
+>
+> 
+
 3. 请求入队，立即返回排队中
+
+   > 同步下单变为异步下单，增加用户体验
+   >
+   > 这里使用四种模式中最简单的direct模式
+   >
+   > ```java
+   > // 入队
+   > 		MiaoshaMessage mm = new MiaoshaMessage();
+   > 		mm.setUser(user);
+   > 		mm.setGoodsId(goodsId);
+   > 		mqSender.sendMiaoshaMessage(mm);
+   > ```
+   >
+   > 
+
 4. 请求出队，生成订单，减少库存
+
+   > 流程是：减库存，下订单，写入秒杀订单。需要注意，最后生成的秒杀订单会写入到redis中去，方便查询用户是否重复下单
+   >
+   > 优化：在miaosha（）方法中，一旦发现某一个商品库存为0，则在Redis中设置一个标志位，表示该商品已经售罄。
+   >
+   > ```java
+   > // 优化：内存标记，减少对Redis的访问
+   > // 设置某一商品是否秒杀完。如果某一时间检测发现该商品库存为0，则put(goodsId, true);
+   > // 以后到来的请求只会先去检查该map。如果发现自己要秒杀的goodId没库存了，就不会进行以后的操作，
+   > // 可以减少对Redis的访问
+   > private Map<Long,Boolean> localOverMap = new HashMap<>();
+   > ```
+   >
+   > 
+
 5. 客户端轮询，是否秒杀成功
 
 
@@ -469,6 +535,10 @@ public class UserArgumentResolver implements HandlerMethodArgumentResolver {
 2. 添加生成地址的接口
 3. 秒杀收到请求，先验证PathVariable
 
+> path是一段随机生成的UUID
+>
+> 也就是将do_miaosha接口改造为/{path}/do_miaosha，其中的path是服务端生成，存储在redis中并返回给前端的。前端带着path再次去请求do_miaosha接口，此时服务器会首先验证path的合法性。这样在秒杀开始前，恶意用户即使知道了秒杀接口，也无法构造do_miaosha请求。注意，秒杀按钮只要在秒杀时间段才能点击。在秒杀开始之前，无法点击秒杀按钮，仅能看到 按钮事件发送了/miaosha/path请求。
+
 
 
 #### 数学公式验证码
@@ -478,6 +548,8 @@ public class UserArgumentResolver implements HandlerMethodArgumentResolver {
 1. 添加生成验证码的接口
 2. 在获取秒杀路径的时候，验证验证码
 3. ScriptEngine使用
+
+> 每次生成验证码之后，就将验证码结果拼装userId存入redis中。在用户输入验证码之后，将redis中的验证码取出并进行校验
 
 
 

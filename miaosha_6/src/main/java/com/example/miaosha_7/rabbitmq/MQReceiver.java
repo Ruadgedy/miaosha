@@ -54,4 +54,14 @@ public class MQReceiver {
 		// 减库存，下订单，写入秒杀订单
 		OrderInfo orderInfo = miaoshaService.miaosha(user,goods);
 	}
+
+	@RabbitListener(queues = MQConfig.TOPIC_QUEUE1)
+	public void receiveTopic1(String msg){
+		log.info("topic queue1:" + msg);
+	}
+
+	@RabbitListener(queues = MQConfig.TOPIC_QUEUE2)
+	public void receiveTopic2(String msg){
+		log.info("topic queue2:" + msg);
+	}
 }

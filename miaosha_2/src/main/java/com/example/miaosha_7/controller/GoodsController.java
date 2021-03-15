@@ -1,12 +1,17 @@
 package com.example.miaosha_7.controller;
 
+import com.alibaba.druid.util.StringUtils;
 import com.example.miaosha_7.domain.MiaoshaUser;
 import com.example.miaosha_7.redis.RedisService;
 import com.example.miaosha_7.service.MiaoshaUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * @author yuhao
